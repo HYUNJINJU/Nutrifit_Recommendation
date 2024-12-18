@@ -1,0 +1,13 @@
+{
+    "user": [
+        {
+            "height":177,
+            "weight":70,
+            "age":24,
+            "gender":"1",
+            "activity":"5",
+            "taste1":1,
+            "taste2":11
+        }
+    ]
+}
