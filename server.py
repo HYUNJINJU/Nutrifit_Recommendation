@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, jsonify
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,7 +11,7 @@ data = pd.read_csv(file_path, encoding='cp949')
 
 selected_columns = [
     "대표식품명", "에너지(kcal)", "단백질(g)", "지방(g)", "탄수화물(g)", "당류(g)", "식이섬유(g)",
-    "칼슘(mg)", "철(mg)", "나트륨(mg)", "비타민 A(\u03bcg RAE)", "비타민 C(mg)", "식품대분류명"
+    "칼슘(mg)", "철(mg)", "나트륨(mg)", "비타민 A(μg RAE)", "비타민 C(mg)", "식품대분류명"
 ]
 nutrition_data = data[selected_columns].dropna()
 nutrition_data_grouped = nutrition_data.groupby(["대표식품명", "식품대분류명"], as_index=False).mean()
@@ -38,7 +38,7 @@ def calculate_daily_intake(user):
         "칼슘(mg)": 850,
         "철(mg)": 10 if gender == "1" else 18,
         "나트륨(mg)": 2000,
-        "비타민 A(\u03bcg RAE)": 900 if gender == "1" else 700,
+        "비타민 A(μg RAE)": 900 if gender == "1" else 700,
         "비타민 C(mg)": 100
     }
 
@@ -56,7 +56,7 @@ def recommend_foods(deficiencies, taste1, taste2):
     nutrient_importance = {
         "에너지(kcal)": 1.0, "단백질(g)": 1.5, "지방(g)": 1.0, "탄수화물(g)": 1.2,
         "당류(g)": 0.8, "식이섬유(g)": 1.5, "칼슘(mg)": 1.3, "철(mg)": 1.4,
-        "나트륨(mg)": 0.7, "비타민 A(\u03bcg RAE)": 1.0, "비타민 C(mg)": 1.2
+        "나트륨(mg)": 0.7, "비타민 A(μg RAE)": 1.0, "비타민 C(mg)": 1.2
     }
 
     weighted_vector = np.array([
@@ -113,9 +113,9 @@ def recommend_html():
         return '''
         <h2>추천 시스템 서버</h2>
         <p>이 서버는 POST 방식으로 사용자 데이터를 받아 음식 추천 결과를 HTML로 반환합니다.</p>
-        <p>Postman 또는 앱에서 JSON 데이터를 전송해 주세요.</p>
+        <p>앱에서 JSON 데이터를 전송해 주세요.</p>
         '''
-        
+
     try:
         input_data = request.get_json()
         user = input_data['user'][0]
@@ -135,12 +135,16 @@ def recommend_html():
             daily['칼슘(mg)'] -= n['calcium'] * ea
             daily['철(mg)'] -= n.get('iron', 0) * ea
             daily['나트륨(mg)'] -= n['sodium'] * ea
-            daily['비타민 A(\u03bcg RAE)'] -= n['vitamina'] * ea
+            daily['비타민 A(μg RAE)'] -= n['vitamina'] * ea
             daily['비타민 C(mg)'] -= n['vitaminc'] * ea
 
         deficiencies = {k: max(0, v) for k, v in daily.items()}
         result_df = recommend_foods(deficiencies, user['taste1'], user['taste2'])
         result = result_df.to_dict(orient='records')
+
+        # JSON 응답 추가
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify(result)
 
         html = '<h2>추천 음식 결과</h2><table border="1" cellpadding="5" cellspacing="0">'
         html += '<tr>' + ''.join(f'<th>{col}</th>' for col in result[0].keys()) + '</tr>'
